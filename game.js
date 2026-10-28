@@ -7,7 +7,6 @@ class CoinDash extends Phaser.Scene {
     this.score = 0;
     this.finished = false;
     this.paused = false;
-    this.deadline = this.time.now + c.roundSeconds * 1000;
     this.physics.world.setBounds(0, 44, c.width, c.height - 44);
     this.add.grid(c.width / 2, c.height / 2, c.width, c.height, 40, 40,
       c.colors.background, 1, 0x24334b, 0.45);
@@ -40,6 +39,27 @@ class CoinDash extends Phaser.Scene {
     this.keys = this.input.keyboard.addKeys('W,A,S,D,R');
     this.input.keyboard.on('keydown-R', () => this.scene.restart());
     this.input.keyboard.on('keydown-P', () => this.togglePause());
+    // Each round starts on a choice screen: keys 1, 2, 3... pick from roundChoices.
+    this.choosing = true;
+    this.physics.pause();
+    const options = c.roundChoices.map((s, i) => `${i + 1}: ${s}s`).join('   ');
+    this.chooseBox = this.add.rectangle(c.width / 2, c.height / 2, 460, 150, 0x0a1120, 0.95);
+    this.chooseText = this.add.text(c.width / 2, c.height / 2, `Choose round length\n${options}`,
+      { font: '24px monospace', color: '#ffffff', align: 'center', lineSpacing: 12 }
+    ).setOrigin(0.5);
+    this.input.keyboard.on('keydown', event => {
+      const seconds = c.roundChoices[Number(event.key) - 1];
+      if (seconds) this.startRound(seconds);
+    });
+  }
+
+  startRound(seconds) {
+    if (!this.choosing) return;
+    this.choosing = false;
+    this.deadline = this.time.now + seconds * 1000;
+    this.physics.resume();
+    this.chooseBox.destroy();
+    this.chooseText.destroy();
   }
 
   placeCoin() {
@@ -61,7 +81,7 @@ class CoinDash extends Phaser.Scene {
   }
 
   togglePause() {
-    if (this.finished) return;
+    if (this.finished || this.choosing) return;
     const c = COIN_DASH;
     this.paused = !this.paused;
     if (this.paused) {
@@ -81,7 +101,7 @@ class CoinDash extends Phaser.Scene {
   }
 
   update() {
-    if (this.finished || this.paused) return;
+    if (this.finished || this.paused || this.choosing) return;
     const dx = Number(this.cursors.right.isDown || this.keys.D.isDown)
       - Number(this.cursors.left.isDown || this.keys.A.isDown);
     const dy = Number(this.cursors.down.isDown || this.keys.S.isDown)

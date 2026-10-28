@@ -2,7 +2,7 @@
 window.COIN_DASH = {
   width: 800,
   height: 500,
-  roundSeconds: 45,
+  roundChoices: [45, 60, 75],
   playerSpeed: 240,
   droneSpeed: 105,
   droneCount: 3,
