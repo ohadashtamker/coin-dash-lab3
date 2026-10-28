@@ -9,8 +9,11 @@ class CoinDash extends Phaser.Scene {
     this.paused = false;
     this.deadline = this.time.now + c.roundSeconds * 1000;
     this.physics.world.setBounds(0, 44, c.width, c.height - 44);
-    this.add.grid(c.width / 2, c.height / 2, c.width, c.height, 40, 40,
-      c.colors.background, 1, 0x24334b, 0.45);
+    // The first time the scene starts, show the background menu instead of a round.
+    const chosen = this.registry.get('background');
+    this.choosing = chosen === undefined;
+    this.drawBackground(this.add.graphics(), c.backgrounds[chosen ?? 0], 0, 0, c.width, c.height);
+    if (this.choosing) { this.showBackgroundMenu(); return; }
     this.hud = this.add.text(18, 12, '', { font: '18px monospace', color: '#ffffff' });
     this.player = this.add.rectangle(c.width / 2, c.height / 2, 24, 24, c.colors.player);
     this.physics.add.existing(this.player);
@@ -39,7 +42,75 @@ class CoinDash extends Phaser.Scene {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys('W,A,S,D,R');
     this.input.keyboard.on('keydown-R', () => this.scene.restart());
+    // B forgets the background and goes back to the background menu.
+    this.input.keyboard.on('keydown-B', () => { this.registry.remove('background'); this.scene.restart(); });
     this.input.keyboard.on('keydown-P', () => this.togglePause());
+  }
+
+  // Draws a background into the rectangle (x, y, w, h); scale shrinks the pattern for menu previews.
+  drawBackground(g, bg, x, y, w, h, scale = 1) {
+    const step = COIN_DASH.backgroundPatternSize * scale;
+    g.fillStyle(bg.color, 1).fillRect(x, y, w, h);
+    g.lineStyle(1, bg.detail, 0.45);
+    if (bg.pattern === 'grid') {
+      for (let i = x; i <= x + w; i += step) g.lineBetween(i, y, i, y + h);
+      for (let j = y; j <= y + h; j += step) g.lineBetween(x, j, x + w, j);
+    } else if (bg.pattern === 'dots') {
+      g.fillStyle(bg.detail, 0.7);
+      for (let i = x + step / 2; i < x + w; i += step) {
+        for (let j = y + step / 2; j < y + h; j += step) g.fillCircle(i, j, 3 * scale);
+      }
+    } else if (bg.pattern === 'waves') {
+      g.lineStyle(2 * scale, bg.detail, 0.6);
+      for (let j = y + step / 2; j < y + h; j += step) {
+        const points = [];
+        for (let i = x; i <= x + w; i += 4 * scale) {
+          points.push(new Phaser.Math.Vector2(i, j + Math.sin((i - x) / (step / 3)) * step / 6));
+        }
+        g.strokePoints(points);
+      }
+    } else if (bg.pattern === 'stars') {
+      // A fixed seed keeps the star field the same in the preview and in every round.
+      const rnd = new Phaser.Math.RandomDataGenerator(['coin-dash']);
+      const count = Math.round(w * h / (step * step) * 0.6);
+      for (let k = 0; k < count; k++) {
+        g.fillStyle(bg.detail, rnd.realInRange(0.3, 1));
+        g.fillCircle(x + rnd.frac() * w, y + rnd.frac() * h, rnd.realInRange(0.6, 1.8) * scale);
+      }
+    }
+  }
+
+  showBackgroundMenu() {
+    const c = COIN_DASH;
+    const n = c.backgrounds.length;
+    const w = 160, h = 100, gap = 24;
+    const left = (c.width - (n * w + (n - 1) * gap)) / 2;
+    const top = c.height / 2 - 70;
+    this.add.rectangle(c.width / 2, c.height / 2, c.width - 40, 300, 0x0a1120, 0.95);
+    this.add.text(c.width / 2, top - 45, 'Choose a background',
+      { font: '24px monospace', color: '#ffffff' }).setOrigin(0.5);
+    c.backgrounds.forEach((bg, i) => {
+      const x = left + i * (w + gap);
+      const g = this.add.graphics();
+      this.drawBackground(g, bg, x, top, w, h, 0.5);
+      g.lineStyle(2, 0xffffff, 0.8).strokeRect(x, top, w, h);
+      this.add.text(x + w / 2, top + h + 22, `${i + 1}  ${bg.name}`,
+        { font: '18px monospace', color: '#ffffff' }).setOrigin(0.5);
+      this.add.zone(x, top, w, h).setOrigin(0).setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => this.chooseBackground(i));
+    });
+    this.add.text(c.width / 2, top + h + 70, `Press 1-${n} or click a picture`,
+      { font: '16px monospace', color: '#9fb0c8' }).setOrigin(0.5);
+    this.input.keyboard.on('keydown', (event) => {
+      const i = Number(event.key) - 1;
+      if (Number.isInteger(i) && i >= 0 && i < n) this.chooseBackground(i);
+    });
+  }
+
+  chooseBackground(i) {
+    // The registry outlives scene restarts, so R keeps this background for later rounds.
+    this.registry.set('background', i);
+    this.scene.restart();
   }
 
   placeCoin() {
@@ -81,7 +152,7 @@ class CoinDash extends Phaser.Scene {
   }
 
   update() {
-    if (this.finished || this.paused) return;
+    if (this.finished || this.paused || this.choosing) return;
     const dx = Number(this.cursors.right.isDown || this.keys.D.isDown)
       - Number(this.cursors.left.isDown || this.keys.A.isDown);
     const dy = Number(this.cursors.down.isDown || this.keys.S.isDown)
