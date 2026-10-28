@@ -41,8 +41,9 @@ class CoinDash extends Phaser.Scene {
     this.physics.add.overlap(this.player, this.drones, () => this.finish('A drone caught you!'));
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys('W,A,S,D,R');
-    // R forgets the background, so every restart goes back to the background menu.
-    this.input.keyboard.on('keydown-R', () => { this.registry.remove('background'); this.scene.restart(); });
+    this.input.keyboard.on('keydown-R', () => this.scene.restart());
+    // B forgets the background and goes back to the background menu.
+    this.input.keyboard.on('keydown-B', () => { this.registry.remove('background'); this.scene.restart(); });
     this.input.keyboard.on('keydown-P', () => this.togglePause());
   }
 
@@ -107,7 +108,7 @@ class CoinDash extends Phaser.Scene {
   }
 
   chooseBackground(i) {
-    // The registry outlives scene restarts, so the round that starts next can read it.
+    // The registry outlives scene restarts, so R keeps this background for later rounds.
     this.registry.set('background', i);
     this.scene.restart();
   }
