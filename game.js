@@ -18,6 +18,9 @@ class CoinDash extends Phaser.Scene {
     this.coin = this.add.circle(100, 100, 9, c.colors.coin);
     this.physics.add.existing(this.coin);
     this.coin.body.setCircle(9);
+    // A diamond is drawn over the coin's physics body; placeCoin() shows one or the other.
+    this.diamond = this.add.rectangle(100, 100, 16, 16, c.colors.diamond).setAngle(45).setVisible(false);
+    this.normalsUntilDiamond = Phaser.Math.Between(c.diamondGapMin, c.diamondGapMax);
     this.placeCoin();
     this.drones = this.physics.add.group();
     for (let i = 0; i < c.droneCount; i++) {
@@ -29,7 +32,7 @@ class CoinDash extends Phaser.Scene {
     }
     this.physics.add.overlap(this.player, this.coin, () => {
       if (this.finished) return;
-      this.score++;
+      this.score += this.isDiamond ? c.diamondValue : 1;
       this.placeCoin();
     });
     this.physics.add.overlap(this.player, this.drones, () => this.finish('A drone caught you!'));
@@ -49,6 +52,12 @@ class CoinDash extends Phaser.Scene {
     } while (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 60);
     this.coin.setPosition(x, y);
     this.coin.body.reset(x, y);
+    // A diamond comes after exactly N normal coins; then a new gap N starts.
+    this.isDiamond = this.normalsUntilDiamond === 0;
+    if (this.isDiamond) this.normalsUntilDiamond = Phaser.Math.Between(c.diamondGapMin, c.diamondGapMax);
+    else this.normalsUntilDiamond--;
+    this.coin.setVisible(!this.isDiamond);
+    this.diamond.setPosition(x, y).setVisible(this.isDiamond);
   }
 
   togglePause() {
@@ -80,7 +89,7 @@ class CoinDash extends Phaser.Scene {
     const direction = new Phaser.Math.Vector2(dx, dy).normalize().scale(COIN_DASH.playerSpeed);
     this.player.body.setVelocity(direction.x, direction.y);
     const seconds = Math.max(0, Math.ceil((this.deadline - this.time.now) / 1000));
-    this.hud.setText(`Coins: ${this.score}                       Time: ${seconds}s`);
+    this.hud.setText(`Points: ${this.score}                      Time: ${seconds}s`);
     if (seconds === 0) this.finish('Time is up!');
   }
 
@@ -91,7 +100,7 @@ class CoinDash extends Phaser.Scene {
     const c = COIN_DASH;
     this.add.rectangle(c.width / 2, c.height / 2, 460, 150, 0x0a1120, 0.95);
     this.add.text(c.width / 2, c.height / 2,
-      `${reason}\n${this.score} coins collected\nPress R to try again`,
+      `${reason}\n${this.score} points scored\nPress R to try again`,
       { font: '24px monospace', color: '#ffffff', align: 'center', lineSpacing: 12 }
     ).setOrigin(0.5);
   }
