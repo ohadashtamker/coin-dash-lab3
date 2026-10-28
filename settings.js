@@ -6,7 +6,6 @@ window.COIN_DASH = {
   playerSpeed: 240,
   droneSpeed: 105,
   droneCount: 3,
-  diamondChance: 0.2,
   diamondGapMin: 2,
   diamondGapMax: 5,
   diamondValue: 2,

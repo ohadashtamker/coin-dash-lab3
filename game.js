@@ -50,8 +50,8 @@ class CoinDash extends Phaser.Scene {
     } while (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 60);
     this.coin.setPosition(x, y);
     this.coin.body.reset(x, y);
-    // Forced after N normal coins, or by random chance; either way a new gap N starts.
-    this.isDiamond = this.normalsUntilDiamond === 0 || Math.random() < c.diamondChance;
+    // A diamond comes after exactly N normal coins; then a new gap N starts.
+    this.isDiamond = this.normalsUntilDiamond === 0;
     if (this.isDiamond) this.normalsUntilDiamond = Phaser.Math.Between(c.diamondGapMin, c.diamondGapMax);
     else this.normalsUntilDiamond--;
     this.coin.setVisible(!this.isDiamond);
